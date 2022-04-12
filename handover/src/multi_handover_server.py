@@ -30,8 +30,8 @@ class HandoverServer:
         self.target = None
         self.target_r = None
         self.target_l = None
-        self.value_r = None
-        self.value_l = None
+        self.value_r = 0
+        self.value_l = 0
         self.model_on = False
         self.f_x = 0
         self.f_y = 0
@@ -109,7 +109,7 @@ class HandoverServer:
             # Go initial pose
             self.count = 0
             try:
-                go_pose = rospy.ServiceProxy("/{0}/go_handover".format(self.arm), Trigger)
+                go_pose = rospy.ServiceProxy("/{0}/go_handover".format('right_arm'), Trigger)
                 resp = go_pose(self.r)
             except rospy.ServiceException as exc:
                 print("service did not process request: " + str(exc))
@@ -117,7 +117,22 @@ class HandoverServer:
 
             # open gripper
             try:
-                go_pose = rospy.ServiceProxy("/{0}/gripper_open".format(self.arm), Trigger)
+                go_pose = rospy.ServiceProxy("/{0}/gripper_open".format('right_arm'), Trigger)
+                resp = go_pose(self.r)
+            except rospy.ServiceException as exc:
+                print("service did not process request: " + str(exc))
+                self._sas.set_aborted()
+
+            try:
+                go_pose = rospy.ServiceProxy("/{0}/go_handover".format('left_arm'), Trigger)
+                resp = go_pose(self.r)
+            except rospy.ServiceException as exc:
+                print("service did not process request: " + str(exc))
+                self._sas.set_aborted()
+
+            # open gripper
+            try:
+                go_pose = rospy.ServiceProxy("/{0}/gripper_open".format('left_arm'), Trigger)
                 resp = go_pose(self.r)
             except rospy.ServiceException as exc:
                 print("service did not process request: " + str(exc))
@@ -127,8 +142,10 @@ class HandoverServer:
             time.sleep(1)
         # Detect
         elif msg.goal == 1:
+            self.pred.arm = 'right_arm'
             self.target_r, _, _, self.value_r = self.pred.predict(self.color_right, self.depth_right)
-            self.target_l, _, _, self.value_r = self.pred.predict(self.color_left, self.depth_left)
+            self.pred.arm = 'left_arm'
+            self.target_l, _, _, self.value_l = self.pred.predict(self.color_left, self.depth_left)
             if self.value_r > self.value_l:
                 self.target = self.target_r
                 self.arm = 'right_arm'
@@ -138,7 +155,7 @@ class HandoverServer:
             else:
                 self.target = self.target_r
                 self.arm = 'right_arm'
-
+            rospy.loginfo(self.arm)
             if self.target == None:
                 self._sas.set_aborted()
             else:
@@ -232,6 +249,18 @@ class HandoverServer:
 
     def onShutdown(self):
         self.model_on = False
+        try:
+            go_pose = rospy.ServiceProxy("/{0}/go_sleep".format('right_arm'), Trigger)
+            resp = go_pose(self.r)
+        except rospy.ServiceException as exc:
+            print("service did not process request: " + str(exc))
+
+        try:
+            go_pose = rospy.ServiceProxy("/{0}/go_sleep".format('left_arm'), Trigger)
+            resp = go_pose(self.r)
+        except rospy.ServiceException as exc:
+            print("service did not process request: " + str(exc))
+
         rospy.sleep(0.5)
         rospy.loginfo("Shutdown.")
 
