@@ -215,7 +215,7 @@ def multi_view():
         smach.StateMachine.add('Init',
                                smach_ros.SimpleActionState('handover_action', TestAction,
                                goal = TestGoal(goal=0)),
-                               {'succeeded':'Move_to','aborted':'Init'})
+                               {'succeeded':'Detect','aborted':'Init'})
 
         smach.StateMachine.add('Detect',
                                smach_ros.SimpleActionState('handover_action', TestAction,
