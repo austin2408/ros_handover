@@ -199,7 +199,7 @@ class Affordance_predict():
             
             return target_pose, go_ok, self.target_cam_dis, self.value
         else:
-            return None, False, self.target_cam_dis
+            return None, False, self.target_cam_dis, 0
 
     def camera2world(self, camera_pose):
         vaild = True
