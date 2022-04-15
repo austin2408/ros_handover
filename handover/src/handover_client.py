@@ -258,7 +258,7 @@ def open_cap():
 
         smach.StateMachine.add('Move_to',
                                smach_ros.SimpleActionState('handover_action', TestAction,
-                               goal = TestGoal(goal=7)),
+                               goal = TestGoal(goal=2)),
                                {'succeeded':'to_parallel','aborted':'Move_to'})
 
         smach.StateMachine.add('to_parallel',
@@ -269,7 +269,7 @@ def open_cap():
         smach.StateMachine.add('Open_cap_1',
                                smach_ros.SimpleActionState('handover_action', TestAction,
                                goal = TestGoal(goal=8)),
-                               {'succeeded':'to_parallel_1','aborted':'Open_cap_1'})
+                               {'succeeded':'to_parallel_2','aborted':'Open_cap_1'})
 
         smach.StateMachine.add('to_parallel_2',
                                smach_ros.SimpleActionState('handover_action', TestAction,
@@ -279,7 +279,12 @@ def open_cap():
         smach.StateMachine.add('Open_cap_2',
                                smach_ros.SimpleActionState('handover_action', TestAction,
                                goal = TestGoal(goal=8)),
-                               {'succeeded':'to_parallel_2','aborted':'Open_cap_2'})
+                               {'succeeded':'Init2','aborted':'to_parallel_2'})
+
+        smach.StateMachine.add('Init2',
+                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               goal = TestGoal(goal=0)),
+                               {'succeeded':'End','aborted':'Init2'})
 
     sis = smach_ros.IntrospectionServer('my_smach_introspection_server', sm0, '/SM_ROOT')
     sis.start()
@@ -291,7 +296,8 @@ def open_cap():
     
 if __name__ == '__main__':
     # hybird()
-    multi_view()
+    # multi_view()
+    open_cap()
     # print("Chose strategies : Static Passive 1 / Static Active 2 / Dynamic Passive 3 / Dynamic Active 4")
     # mode = int(input("Enter : "))
     # while True:
