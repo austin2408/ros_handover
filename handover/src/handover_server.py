@@ -31,6 +31,7 @@ class HandoverServer:
         self.f_y = 0
         self.f_z = 0
         self.count = 0
+        self.turn = 0
         self.dis = None
         self.pred = Affordance_predict(self.arm, info.P[0], info.P[5], info.P[2], info.P[6])
         if arm == 'right_arm':
@@ -210,6 +211,53 @@ class HandoverServer:
                     print("service did not process request: " + str(exc))
                 self._sas.set_succeeded()
 
+            time.sleep(0.5)
+
+        # Go to 
+        elif msg.goal == 7:
+            try:
+                go_pose = rospy.ServiceProxy("/{0}/gripper_open".format(self.arm), Trigger)
+                resp = go_pose(self.r)
+            except rospy.ServiceException as exc:
+                print("service did not process request: " + str(exc))
+                self._sas.set_aborted()
+            
+            self.target.target_pose.orientation.w = 1.0
+            self.target.target_pose.orientation.x = 0.0
+            self.target.target_pose.orientation.y = 0.0
+            self.target.target_pose.orientation.z = 0.0
+
+            try:
+                go_pose = rospy.ServiceProxy("/{0}/go_pose".format(self.arm), ee_pose)
+                resp = go_pose(self.target)
+            except rospy.ServiceException as exc:
+                print("service did not process request: " + str(exc))
+                self._sas.set_aborted()
+
+            self._sas.set_succeeded()
+
+        # Open cap
+        elif msg.goal == 8:
+            try:
+                go_pose = rospy.ServiceProxy("/{0}/gripper_close".format(self.arm), Trigger)
+                resp = go_pose(self.r)
+            except rospy.ServiceException as exc:
+                print("service did not process request: " + str(exc))
+                self._sas.set_aborted()
+
+            self.target.target_pose.orientation.w = 0.707
+            self.target.target_pose.orientation.x = 0.707
+            self.target.target_pose.orientation.y = 0.0
+            self.target.target_pose.orientation.z = 0.0
+
+            try:
+                go_pose = rospy.ServiceProxy("/{0}/go_pose".format(self.arm), ee_pose)
+                resp = go_pose(self.target)
+            except rospy.ServiceException as exc:
+                print("service did not process request: " + str(exc))
+                self._sas.set_aborted()
+
+            self._sas.set_succeeded()
             time.sleep(0.5)
 
     def onShutdown(self):

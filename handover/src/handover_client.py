@@ -239,6 +239,55 @@ def multi_view():
 
     rospy.spin()
     sis.stop()
+
+def open_cap():
+    rospy.init_node('handover_client')
+
+    sm0 = smach.StateMachine(outcomes=['succeeded','aborted','preempted', 'End'])
+
+    with sm0:
+        smach.StateMachine.add('Init',
+                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               goal = TestGoal(goal=0)),
+                               {'succeeded':'Detect','aborted':'Init'})
+
+        smach.StateMachine.add('Detect',
+                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               goal = TestGoal(goal=1)),
+                               {'succeeded':'Move_to','aborted':'Detect'})
+
+        smach.StateMachine.add('Move_to',
+                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               goal = TestGoal(goal=7)),
+                               {'succeeded':'to_parallel','aborted':'Move_to'})
+
+        smach.StateMachine.add('to_parallel',
+                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               goal = TestGoal(goal=7)),
+                               {'succeeded':'Open_cap_1','aborted':'to_parallel'})
+
+        smach.StateMachine.add('Open_cap_1',
+                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               goal = TestGoal(goal=8)),
+                               {'succeeded':'to_parallel_1','aborted':'Open_cap_1'})
+
+        smach.StateMachine.add('to_parallel_2',
+                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               goal = TestGoal(goal=7)),
+                               {'succeeded':'Open_cap_2','aborted':'to_parallel_2'})
+
+        smach.StateMachine.add('Open_cap_2',
+                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               goal = TestGoal(goal=8)),
+                               {'succeeded':'to_parallel_2','aborted':'Open_cap_2'})
+
+    sis = smach_ros.IntrospectionServer('my_smach_introspection_server', sm0, '/SM_ROOT')
+    sis.start()
+
+    outcome = sm0.execute()
+
+    rospy.spin()
+    sis.stop()
     
 if __name__ == '__main__':
     # hybird()
