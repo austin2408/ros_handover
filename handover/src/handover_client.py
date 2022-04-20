@@ -192,6 +192,11 @@ def hybird():
                                goal = TestGoal(goal=5)),
                                {'succeeded':'Grasp_back','aborted':'Wait_object'})
 
+        # smach.StateMachine.add('Check_dis',
+        #                        smach_ros.SimpleActionState('handover_action', TestAction,
+        #                        goal = TestGoal(goal=4)),
+        #                        {'succeeded':'Grasp_back','aborted':'Move_to'})
+
         smach.StateMachine.add('Grasp_back',
                                smach_ros.SimpleActionState('handover_action', TestAction,
                                goal = TestGoal(goal=3)),
@@ -295,26 +300,19 @@ def open_cap():
     sis.stop()
     
 if __name__ == '__main__':
-    # hybird()
-    # multi_view()
-    open_cap()
-    # print("Chose strategies : Static Passive 1 / Static Active 2 / Dynamic Passive 3 / Dynamic Active 4")
-    # mode = int(input("Enter : "))
-    # while True:
-    #     if mode == 1:
-    #         static_passive()
-    #         break
-    #     elif mode == 2:
-    #         static_active()
-    #         break
-    #     elif mode == 3:
-    #         dynamic_passive()
-    #         break
-    #     elif mode == 4:
-    #         # dynamic_active()
-    #         hybird()
-    #         break
-    #     else:
-    #         mode = input("Re Enter : ")
+    print("Chose strategies : Handover 1 / Multi_view Handover 2 / Open cover 3")
+    mode = int(input("Enter : "))
+    while True:
+        if mode == 1:
+            hybird()
+            break
+        elif mode == 2:
+            multi_view()
+            break
+        elif mode == 3:
+            open_cap()
+            break
+        else:
+            mode = input("Re Enter : ")
 
 
