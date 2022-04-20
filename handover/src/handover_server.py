@@ -256,6 +256,18 @@ class HandoverServer:
 
     def onShutdown(self):
         self.model_on = False
+        try:
+            go_pose = rospy.ServiceProxy("/{0}/go_sleep".format('right_arm'), Trigger)
+            resp = go_pose(self.r)
+        except rospy.ServiceException as exc:
+            print("service did not process request: " + str(exc))
+
+        try:
+            go_pose = rospy.ServiceProxy("/{0}/go_sleep".format('left_arm'), Trigger)
+            resp = go_pose(self.r)
+        except rospy.ServiceException as exc:
+            print("service did not process request: " + str(exc))
+
         rospy.sleep(0.5)
         rospy.loginfo("Shutdown.")
 

@@ -61,6 +61,7 @@ def processing(color, depth):
 def aff_process(pred, color, depth):
     value = np.max(pred)
     graspable = cv2.resize(pred, (640, 480))
+    # print(graspable.shape, depth.shape)
     graspable[depth==0] = 0
     graspable[graspable>=1] = 0.99999
     graspable[graspable<0] = 0
@@ -184,8 +185,8 @@ class Affordance_predict():
             # Add to pose msgs
             Target_pose = ee_poseRequest()
             Target_pose.target_pose.position.x = camera_x
-            Target_pose.target_pose.position.y = camera_y
-            Target_pose.target_pose.position.z = camera_z
+            Target_pose.target_pose.position.y = camera_y - 0.04
+            Target_pose.target_pose.position.z = camera_z - 0.05
 
             Target_pose.target_pose.orientation.x = rot_quat[0]
             Target_pose.target_pose.orientation.y = rot_quat[1]
@@ -240,12 +241,12 @@ class Affordance_predict():
         if tf_pose_matrix[0, 3] >= 0.15 and tf_pose_matrix[0, 3] <= 1.5:
             if self.arm == 'left_arm':
                 tf_pose.target_pose.position.x = tf_pose_matrix[0, 3] + 0.07
-                tf_pose.target_pose.position.y = tf_pose_matrix[1, 3] + 0.0
-                tf_pose.target_pose.position.z = tf_pose_matrix[2, 3] -0.07
-            else:
-                tf_pose.target_pose.position.x = tf_pose_matrix[0, 3] + 0.03
                 tf_pose.target_pose.position.y = tf_pose_matrix[1, 3] + 0.03
-                tf_pose.target_pose.position.z = tf_pose_matrix[2, 3] - 0.1
+                tf_pose.target_pose.position.z = tf_pose_matrix[2, 3] - 0.07
+            else:
+                tf_pose.target_pose.position.x = tf_pose_matrix[0, 3]
+                tf_pose.target_pose.position.y = tf_pose_matrix[1, 3]
+                tf_pose.target_pose.position.z = tf_pose_matrix[2, 3] - 0.07
 
             tf_pose.target_pose.orientation.x = rot_quat[0]
             tf_pose.target_pose.orientation.y = rot_quat[1]
