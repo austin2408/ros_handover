@@ -2,6 +2,9 @@
 
 import rospy
 import time
+import sys
+# sys.path.append()
+sys.path.append('/home/kl/Pick-and-Place-with-RL/catkin_ws/src/ros_handover/handover/src/HANet')
 from HANet.utils import Affordance_predict
 import message_filters
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image
