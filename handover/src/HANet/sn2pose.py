@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import numpy as np
 from math import atan, tan, pi
@@ -5,6 +7,7 @@ from scipy.spatial.transform import Rotation
 from math import *
 import matplotlib.pyplot as plt
 import python.lib.python.NormalEstimatorHough as Estimator
+# from python.lib.python.NormalEstimatorHough import Estimator
 
 class SurfaceNormal2Quaternion():
     def __init__(self, fx, fy, cx, cy):
@@ -46,28 +49,24 @@ class SurfaceNormal2Quaternion():
         print(rotations_vector)
         r = Rotation.from_rotvec(theta * rotations_vector, degrees=True)
         q = r.as_quat()
+        # print(q)
 
         return q
 
+if __name__ == '__main__':
+    a = 387.59381103515625
+    b = 387.59381103515625
+    c = 321.61895751953125
+    d = 239.87408447265625
 
+    depth_img = np.zeros((224,224))
+    depth_img += 15000
+    depth_img[50:200, 50:200] = 2000
 
-a = 387.59381103515625
-b = 387.59381103515625
-c = 321.61895751953125
-d = 239.87408447265625
+    transformer = SurfaceNormal2Quaternion(a,b,c,d)
 
+    Q = transformer.get_quaternion(depth_img, 112, 112, 90)
+    print(Q)
 
-# Input : depth image, instere (x, y), theta / Output : Quaternion
-# depth_data_path = '/home/kl/Pick-and-Place-with-RL/catkin_ws/src/handover/src/depth_0.npy'
-# depth_img = np.load(depth_data_path)
-depth_img = np.zeros((224,224))
-depth_img += 15000
-depth_img[50:200, 50:200] = 2000
-# plt.imshow(depth_img)
-# plt.show()
-
-
-transformer = SurfaceNormal2Quaternion(a,b,c,d)
-
-Q = transformer.get_quaternion(depth_img, 112, 112, 90)
-print(Q)
+    plt.imshow(depth_img)
+    plt.show()
