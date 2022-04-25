@@ -175,31 +175,26 @@ def hybird():
         smach.StateMachine.add('Init',
                                smach_ros.SimpleActionState('handover_action', TestAction,
                                goal = TestGoal(goal=0)),
-                               {'succeeded':'Move_to','aborted':'Init'})
+                               {'succeeded':'Detect and Go target','aborted':'Init'})
 
-        smach.StateMachine.add('Move_to',
+        smach.StateMachine.add('Detect and Go target',
                                smach_ros.SimpleActionState('handover_action', TestAction,
-                               goal = TestGoal(goal=6)),
-                               {'succeeded':'Check_dis','aborted':'Move_to'})
+                               goal = TestGoal(goal=1)),
+                               {'succeeded':'Check_dis','aborted':'Detect and Go target'})
 
         smach.StateMachine.add('Check_dis',
                                smach_ros.SimpleActionState('handover_action', TestAction,
-                               goal = TestGoal(goal=4)),
-                               {'succeeded':'Wait_object','aborted':'Move_to'})
+                               goal = TestGoal(goal=3)),
+                               {'succeeded':'Wait_object','aborted':'Detect and Go target'})
 
         smach.StateMachine.add('Wait_object',
                                smach_ros.SimpleActionState('handover_action', TestAction,
-                               goal = TestGoal(goal=5)),
+                               goal = TestGoal(goal=4)),
                                {'succeeded':'Grasp_back','aborted':'Wait_object'})
-
-        # smach.StateMachine.add('Check_dis',
-        #                        smach_ros.SimpleActionState('handover_action', TestAction,
-        #                        goal = TestGoal(goal=4)),
-        #                        {'succeeded':'Grasp_back','aborted':'Move_to'})
 
         smach.StateMachine.add('Grasp_back',
                                smach_ros.SimpleActionState('handover_action', TestAction,
-                               goal = TestGoal(goal=3)),
+                               goal = TestGoal(goal=2)),
                                {'succeeded':'End','aborted':'Grasp_back'})
 
     sis = smach_ros.IntrospectionServer('my_smach_introspection_server', sm0, '/SM_ROOT')
@@ -218,22 +213,22 @@ def multi_view():
 
     with sm0:
         smach.StateMachine.add('Init',
-                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               smach_ros.SimpleActionState('multi_handover_action', TestAction,
                                goal = TestGoal(goal=0)),
                                {'succeeded':'Detect','aborted':'Init'})
 
         smach.StateMachine.add('Detect',
-                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               smach_ros.SimpleActionState('multi_handover_action', TestAction,
                                goal = TestGoal(goal=1)),
                                {'succeeded':'Move_to','aborted':'Detect'})
 
         smach.StateMachine.add('Move_to',
-                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               smach_ros.SimpleActionState('multi_handover_action', TestAction,
                                goal = TestGoal(goal=2)),
                                {'succeeded':'Grasp_back','aborted':'Move_to'})
 
         smach.StateMachine.add('Grasp_back',
-                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               smach_ros.SimpleActionState('multi_handover_action', TestAction,
                                goal = TestGoal(goal=3)),
                                {'succeeded':'End','aborted':'Grasp_back'})
 
@@ -254,36 +249,31 @@ def open_cap():
         smach.StateMachine.add('Init',
                                smach_ros.SimpleActionState('handover_action', TestAction,
                                goal = TestGoal(goal=0)),
-                               {'succeeded':'Detect','aborted':'Init'})
+                               {'succeeded':'Detect and Go target','aborted':'Init'})
 
-        smach.StateMachine.add('Detect',
+        smach.StateMachine.add('Detect and Go target',
                                smach_ros.SimpleActionState('handover_action', TestAction,
                                goal = TestGoal(goal=1)),
-                               {'succeeded':'Move_to','aborted':'Detect'})
-
-        smach.StateMachine.add('Move_to',
-                               smach_ros.SimpleActionState('handover_action', TestAction,
-                               goal = TestGoal(goal=2)),
-                               {'succeeded':'to_parallel','aborted':'Move_to'})
+                               {'succeeded':'to_parallel','aborted':'Detect and Go target'})
 
         smach.StateMachine.add('to_parallel',
                                smach_ros.SimpleActionState('handover_action', TestAction,
-                               goal = TestGoal(goal=7)),
+                               goal = TestGoal(goal=5)),
                                {'succeeded':'Open_cap_1','aborted':'to_parallel'})
 
         smach.StateMachine.add('Open_cap_1',
                                smach_ros.SimpleActionState('handover_action', TestAction,
-                               goal = TestGoal(goal=8)),
+                               goal = TestGoal(goal=6)),
                                {'succeeded':'to_parallel_2','aborted':'Open_cap_1'})
 
         smach.StateMachine.add('to_parallel_2',
                                smach_ros.SimpleActionState('handover_action', TestAction,
-                               goal = TestGoal(goal=7)),
+                               goal = TestGoal(goal=5)),
                                {'succeeded':'Open_cap_2','aborted':'to_parallel_2'})
 
         smach.StateMachine.add('Open_cap_2',
                                smach_ros.SimpleActionState('handover_action', TestAction,
-                               goal = TestGoal(goal=8)),
+                               goal = TestGoal(goal=6)),
                                {'succeeded':'Init2','aborted':'to_parallel_2'})
 
         smach.StateMachine.add('Init2',
@@ -313,6 +303,6 @@ if __name__ == '__main__':
             open_cap()
             break
         else:
-            mode = input("Re Enter : ")
+            mode = int(input("Re Enter : "))
 
 
