@@ -1,6 +1,7 @@
 import os
+import sys
 from .model import HANet
-# from .sn2pose import  SurfaceNormal2Quaternion
+# from .sn2pose import SurfaceNormal2Quaternion
 import numpy as np
 import cv2
 import rospy
@@ -14,8 +15,6 @@ from scipy.spatial.transform import Rotation
 from tf import TransformListener, TransformerROS, transformations
 import tf
 from vx300s_bringup.srv import *
-
-# from .prioritized_memory import Transition
 
 path = os.getcwd()
 
@@ -52,8 +51,6 @@ def processing(color, depth):
     d = transform(depth_3c)
     c = torch.unsqueeze(c,0)
     d = torch.unsqueeze(d,0)
-    # c = torch.float(c)
-    # d = torch.float(d)
 
     return c.float(), d.float()
 
@@ -61,7 +58,6 @@ def processing(color, depth):
 def aff_process(pred, color, depth):
     value = np.max(pred)
     graspable = cv2.resize(pred, (640, 480))
-    # print(graspable.shape, depth.shape)
     graspable[depth==0] = 0
     graspable[graspable>=1] = 0.99999
     graspable[graspable<0] = 0
@@ -102,12 +98,19 @@ def aff_process(pred, color, depth):
     return x, y, combine, value
 
 class Affordance_predict():
-    def __init__(self, arm, fx, fy, cx, cy):
+    def __init__(self, arm, fx, fy, cx, cy, Mode):
         r = rospkg.RosPack()
         self.path = r.get_path("handover")
         self.net = HANet(4)
-        self.net.load_state_dict(torch.load(self.path+'/src/ddqn/weight/HANet.pth'))
-        # self.net.load_state_dict(torch.load(self.path+'/src/ddqn/weight/HANet_bottel_cap.pth'))
+        self.Mode = Mode
+        if self.Mode == 'handover':
+            self.net.load_state_dict(torch.load(self.path+'/src/ddqn/weight/HANet.pth'))
+            self.A = [90,45,0,-45]
+            rospy.loginfo('Handover Mode')
+        else:
+            self.net.load_state_dict(torch.load(self.path+'/src/ddqn/weight/HANet_bottel_cap.pth'))
+            self.A = [0,0,0,0]
+            rospy.loginfo('Open Cover Mode')
         self.net = self.net.cuda()
         self.bridge = CvBridge()
         self.target_cam_dis = 1000
@@ -121,8 +124,8 @@ class Affordance_predict():
         self.fy = fy
         self.cx = cx
         self.cy = cy
-        self.aff_pub = rospy.Publisher("/handover_server/affordance_map", Image, queue_size=10)
-        # self.sn2q = SurfaceNormal2Quacternion(fx, fy, cx, cy)
+        # self.sn2q = SurfaceNormal2Quaternion(fx, fy, cx, cy)
+
 
     def switch(self):
         if self.go_loop:
@@ -131,11 +134,18 @@ class Affordance_predict():
         else:
             rospy.loginfo("Enable Close Loop")
             self.go_loop = True
+
+    def switch_hand(self):
+        if self.arm == 'right_arm':
+            rospy.loginfo("Switch to left arm")
+            self.arm = 'left_arm'
+        else:
+            rospy.loginfo("Switch to right arm")
+            self.arm = 'right_arm'
         
 
     def predict(self, color, depth):
         # Convert msg type
-        A = [90,45,0,-45]
         
         try:
             cv_image = self.bridge.compressed_imgmsg_to_cv2(color, "bgr8")
@@ -170,23 +180,28 @@ class Affordance_predict():
 
             aff_pub = cv2.circle(aff_pub, (int(x), int(y)), 10, (0,255,0), -1)
             p = self.bridge.cv2_to_imgmsg(aff_pub, "bgr8")
-            self.aff_pub.publish(p)
 
             camera_x, camera_y, camera_z = self.getXYZ(x, y, z)
             self.target_cam_dis = camera_z
 
 
-            rot = Rotation.from_euler('xyz', [A[pred_id], 0, 0], degrees=True) 
-
-            rot_quat = rot.as_quat()
-
             # rot_quat = self.sn2q.get_quaternion(cv_depth_grasp, x, y, A[pred_id])
 
             # Add to pose msgs
             Target_pose = ee_poseRequest()
-            Target_pose.target_pose.position.x = camera_x
-            Target_pose.target_pose.position.y = camera_y - 0.04
-            Target_pose.target_pose.position.z = camera_z - 0.05
+
+            if self.Mode == 'handover':
+                rot = Rotation.from_euler('xyz', [self.A[pred_id], 0, 0], degrees=True)
+                Target_pose.target_pose.position.x = camera_x
+                Target_pose.target_pose.position.y = camera_y - 0.04
+                Target_pose.target_pose.position.z = camera_z - 0.05
+            else:
+                rot = Rotation.from_euler('xyz', [0, 80, 0], degrees=True)
+                Target_pose.target_pose.position.x = camera_x
+                Target_pose.target_pose.position.y = camera_y - 0.04
+                Target_pose.target_pose.position.z = camera_z + 0.05
+
+            rot_quat = rot.as_quat()
 
             Target_pose.target_pose.orientation.x = rot_quat[0]
             Target_pose.target_pose.orientation.y = rot_quat[1]
@@ -198,9 +213,9 @@ class Affordance_predict():
             if z == 0.0:
                 go_ok = False
             
-            return target_pose, go_ok, self.target_cam_dis, self.value
+            return target_pose, go_ok, self.target_cam_dis, p, self.value
         else:
-            return None, False, self.target_cam_dis, 0
+            return None, False, self.target_cam_dis, None, 0
 
     def camera2world(self, camera_pose):
         vaild = True
