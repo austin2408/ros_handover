@@ -3,6 +3,7 @@
 import rospy
 import time
 import sys
+import argparse
 # sys.path.append()
 sys.path.append('/home/kl/Pick-and-Place-with-RL/catkin_ws/src/ros_handover/handover/src/HANet')
 from HANet.utils import Affordance_predict
@@ -20,11 +21,12 @@ warnings.filterwarnings("ignore")
 
 # Create a trivial action server
 class HandoverServer:
-    def __init__(self, name, arm='right_arm', force=False):
+    def __init__(self, name, mode, arm):
         self._sas = SimpleActionServer(name, TestAction, execute_cb=self.execute_cb, auto_start=False)
         self._sas.start()
         self.r = TriggerRequest()
         info = rospy.wait_for_message('camera_right/color/camera_info', CameraInfo)
+        self.mode = mode
         self.arm = arm
         self.color = None
         self.depth = None
@@ -36,8 +38,11 @@ class HandoverServer:
         self.count = 0
         self.turn = 0
         self.dis = None
-        # print(1)
-        self.pred = Affordance_predict(self.arm, info.P[0], info.P[5], info.P[2], info.P[6])
+        self.pred = Affordance_predict(self.arm, info.P[0], info.P[5], info.P[2], info.P[6], self.mode)
+        
+        # Subscriber:
+        self.force = rospy.Subscriber("/robotiq_ft_wrench", WrenchStamped, self.callback_force_msgs)
+
         if arm == 'right_arm':
             self.color_sub = message_filters.Subscriber('/camera_right/color/image_raw/compressed', CompressedImage)
             self.depth_sub = message_filters.Subscriber('/camera_right/aligned_depth_to_color/image_raw', Image)
@@ -47,35 +52,53 @@ class HandoverServer:
 
         ts = message_filters.ApproximateTimeSynchronizer([self.color_sub, self.depth_sub], 5, 5)
         ts.registerCallback(self.callback_img_msgs)
-        # print(2)
 
-        # if fcorce:
-        self.force = rospy.Subscriber("/robotiq_ft_wrench", WrenchStamped, self.callback_force_msgs)
+        # Publisher prediction image
+        self.aff_pub_right = rospy.Publisher("~affordance_map_right", Image, queue_size=10)
+        self.aff_pub_left = rospy.Publisher("~affordance_map_left", Image, queue_size=10)
 
-        # self.aff_pub = rospy.Publisher("~affordance_map", Image, queue_size=10)
-
+        # Service
         rospy.Service('~switch_loop', Trigger, self.switch_loop)
         rospy.Service('~switch_model', Trigger, self.switch_model)
+        rospy.Service('~switch_hand', Trigger, self.switch_hand)
         rospy.loginfo("Server Initial Complete")
+
+        # Start prediction
         self.realtime_pred()
+
         """
         goal = 0 : Init
-             = 1 : Detect
-             = 2 : Move_to
-             = 3 : Close_and_back
-             = 4 : Check_distance
-             = 5 : Wait
+             = 1 : Detect and Go target
+             = 2 : Grasp_back
+             = 3 : Check_dis
+             = 4 : Wait_object
+             = 5 : To_parallel
+             = 6 : Open_cap
         """
 
     def realtime_pred(self):
         while True:
             if self.model_on:
                 if self.color != None and self.depth!= None:
-                    self.target, _, self.dis, _ = self.pred.predict(self.color, self.depth)
+                    self.target, _, self.dis, aff_map, _ = self.pred.predict(self.color, self.depth)
+                    if self.target != None:
+                        if self.arm == 'right_arm':
+                            self.aff_pub_right.publish(aff_map)
+                        else:
+                            self.aff_pub_left.publish(aff_map)
+            if self.model_on == 'stop':
+                break
 
     def switch_loop(self, req):
         res = TriggerResponse()
         self.pred.switch()
+        res.success = True
+
+        return res
+
+    def switch_hand(self, req):
+        res = TriggerResponse()
+        self.pred.switch_hand()
         res.success = True
 
         return res
@@ -124,28 +147,22 @@ class HandoverServer:
             
             self._sas.set_succeeded()
             time.sleep(1)
-        # Detect
+        # Detect and Go target
         elif msg.goal == 1:
-            self.target, _, self.dis, _ = self.pred.predict(self.color, self.depth)
             if self.target == None:
                 self._sas.set_aborted()
             else:
+                try:
+                    go_pose = rospy.ServiceProxy("/{0}/go_pose".format(self.arm), ee_pose)
+                    resp = go_pose(self.target)
+                    self.count += 1
+                except rospy.ServiceException as exc:
+                    print("service did not process request: " + str(exc))
                 self._sas.set_succeeded()
-            time.sleep(1)
-        # Move_to
-        elif msg.goal == 2:
-            # Go target
-            try:
-                go_pose = rospy.ServiceProxy("/{0}/go_pose".format(self.arm), ee_pose)
-                resp = go_pose(self.target)
-            except rospy.ServiceException as exc:
-                print("service did not process request: " + str(exc))
-                self._sas.set_aborted()
 
-            self._sas.set_succeeded()
             time.sleep(0.5)
         # Grasp and back
-        elif msg.goal == 3:
+        elif msg.goal == 2:
             try:
                 go_pose = rospy.ServiceProxy("/{0}/gripper_close".format(self.arm), Trigger)
                 resp = go_pose(self.r)
@@ -182,9 +199,9 @@ class HandoverServer:
                 self._sas.set_aborted()
             
             self._sas.set_succeeded()
-            # time.sleep(2.5)
+
         # Check distance
-        elif msg.goal == 4:
+        elif msg.goal == 3:
             rospy.loginfo(str(self.dis))
             if self.dis <= 0.02:
                 self._sas.set_succeeded()
@@ -194,7 +211,7 @@ class HandoverServer:
                 self._sas.set_aborted()
             rospy.sleep(0.5)
         # Wait object
-        elif msg.goal == 5:
+        elif msg.goal == 4:
             rospy.sleep(1)
             x = self.f_x
             while True:
@@ -202,24 +219,8 @@ class HandoverServer:
                     break
 
             self._sas.set_succeeded()
-            # time.sleep(2.5)
-        elif msg.goal == 6:
-            # Go target
-            if self.target == None:
-                self._sas.set_aborted()
-            else:
-                try:
-                    go_pose = rospy.ServiceProxy("/{0}/go_pose".format(self.arm), ee_pose)
-                    resp = go_pose(self.target)
-                    self.count += 1
-                except rospy.ServiceException as exc:
-                    print("service did not process request: " + str(exc))
-                self._sas.set_succeeded()
-
-            time.sleep(0.5)
-
-        # Go to 
-        elif msg.goal == 7:
+        # To parallel pose
+        elif msg.goal == 5:
             try:
                 go_pose = rospy.ServiceProxy("/{0}/gripper_open".format(self.arm), Trigger)
                 resp = go_pose(self.r)
@@ -236,9 +237,8 @@ class HandoverServer:
                 self._sas.set_aborted()
 
             self._sas.set_succeeded()
-
         # Open cap
-        elif msg.goal == 8:
+        elif msg.goal == 6:
             try:
                 go_pose = rospy.ServiceProxy("/{0}/gripper_close".format(self.arm), Trigger)
                 resp = go_pose(self.r)
@@ -258,7 +258,7 @@ class HandoverServer:
             time.sleep(0.5)
 
     def onShutdown(self):
-        self.model_on = False
+        self.model_on = 'stop'
         try:
             go_pose = rospy.ServiceProxy("/{0}/go_sleep".format('right_arm'), Trigger)
             resp = go_pose(self.r)
@@ -275,7 +275,12 @@ class HandoverServer:
         rospy.loginfo("Shutdown.")
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Set up')
+    parser.add_argument('--mode', type=str, default = 'handover')
+    parser.add_argument('--arm', type=str, default = 'right_arm')
+    args = parser.parse_args()
+
     rospy.init_node('handover_server')
-    server = HandoverServer('handover_action')
+    server = HandoverServer(name='handover_action', mode=args.mode, arm=args.arm)
     rospy.on_shutdown(server.onShutdown)
     rospy.spin()
