@@ -104,11 +104,11 @@ class Affordance_predict():
         self.net = HANet(4)
         self.Mode = Mode
         if self.Mode == 'handover':
-            self.net.load_state_dict(torch.load(self.path+'/src/ddqn/weight/HANet.pth'))
+            self.net.load_state_dict(torch.load(self.path+'/src/HANet/HANet.pth'))
             self.A = [90,45,0,-45]
             rospy.loginfo('Handover Mode')
         else:
-            self.net.load_state_dict(torch.load(self.path+'/src/ddqn/weight/HANet_bottel_cap.pth'))
+            self.net.load_state_dict(torch.load(self.path+'/src/HANet/HANet_bottel_cap.pth'))
             self.A = [0,0,0,0]
             rospy.loginfo('Open Cover Mode')
         self.net = self.net.cuda()
