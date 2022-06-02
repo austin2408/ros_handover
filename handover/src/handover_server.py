@@ -36,21 +36,18 @@ class HandoverServer:
         self.f_y = 0
         self.f_z = 0
         self.count = 0
-        self.turn = 0
         self.dis = None
         self.pred = Affordance_predict(self.arm, info.P[0], info.P[5], info.P[2], info.P[6], self.mode)
         
         # Subscriber:
         self.force = rospy.Subscriber("/robotiq_ft_wrench", WrenchStamped, self.callback_force_msgs)
 
-        if arm == 'right_arm':
-            self.color_sub = message_filters.Subscriber('/camera_right/color/image_raw/compressed', CompressedImage)
-            self.depth_sub = message_filters.Subscriber('/camera_right/aligned_depth_to_color/image_raw', Image)
-        else:
-            self.color_sub = message_filters.Subscriber('/camera_left/color/image_raw/compressed', CompressedImage)
-            self.depth_sub = message_filters.Subscriber('/camera_left/aligned_depth_to_color/image_raw', Image)
+        self.color_sub_r = message_filters.Subscriber('/camera_right/color/image_raw/compressed', CompressedImage)
+        self.depth_sub_r = message_filters.Subscriber('/camera_right/aligned_depth_to_color/image_raw', Image)
+        self.color_sub_l = message_filters.Subscriber('/camera_left/color/image_raw/compressed', CompressedImage)
+        self.depth_sub_l = message_filters.Subscriber('/camera_left/aligned_depth_to_color/image_raw', Image)
 
-        ts = message_filters.ApproximateTimeSynchronizer([self.color_sub, self.depth_sub], 5, 5)
+        ts = message_filters.ApproximateTimeSynchronizer([self.color_sub_r, self.depth_sub_r, self.color_sub_l, self.depth_sub_l], 5, 5)
         ts.registerCallback(self.callback_img_msgs)
 
         # Publisher prediction image
@@ -98,7 +95,14 @@ class HandoverServer:
 
     def switch_hand(self, req):
         res = TriggerResponse()
+        
         self.pred.switch_hand()
+
+        if self.arm == 'right_arm':
+            self.arm = 'left_arm'
+        else:
+            self.arm = 'right_arm'
+
         res.success = True
 
         return res
@@ -116,9 +120,13 @@ class HandoverServer:
 
         return res
     
-    def callback_img_msgs(self, color_msg, depth_msg):
-        self.color = color_msg
-        self.depth = depth_msg
+    def callback_img_msgs(self, color_msg_r, depth_msg_r, color_msg_l, depth_msg_l):
+        if self.arm == 'right_arm':
+            self.color = color_msg_r
+            self.depth = depth_msg_r
+        else:
+            self.color = color_msg_l
+            self.depth = depth_msg_l
 
     def callback_force_msgs(self, msg):
         self.f_x = int(msg.wrench.force.x)
@@ -155,10 +163,8 @@ class HandoverServer:
                 try:
                     go_pose = rospy.ServiceProxy("/{0}/go_pose".format(self.arm), ee_pose)
                     resp = go_pose(self.target)
-                    self.count += 1
                 except rospy.ServiceException as exc:
                     print("service did not process request: " + str(exc))
-                self._sas.set_succeeded()
 
             time.sleep(0.5)
         # Grasp and back
@@ -199,13 +205,13 @@ class HandoverServer:
                 self._sas.set_aborted()
             
             self._sas.set_succeeded()
-
         # Check distance
         elif msg.goal == 3:
             rospy.loginfo(str(self.dis))
             if self.dis <= 0.02:
                 self._sas.set_succeeded()
             elif self.count == 2:
+                self.pred.switch()
                 self._sas.set_succeeded()
             else:
                 self._sas.set_aborted()

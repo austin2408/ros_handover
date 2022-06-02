@@ -288,9 +288,39 @@ def open_cap():
 
     rospy.spin()
     sis.stop()
+
+def hand_off():
+    rospy.init_node('handover_client')
+
+    sm0 = smach.StateMachine(outcomes=['succeeded','aborted','preempted', 'End'])
+
+    with sm0:
+        smach.StateMachine.add('Init',
+                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               goal = TestGoal(goal=0)),
+                               {'succeeded':'Wait_object','aborted':'Init'})
+
+        smach.StateMachine.add('Wait_object',
+                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               goal = TestGoal(goal=4)),
+                               {'succeeded':'Grasp_back','aborted':'Wait_object'})
+
+
+        smach.StateMachine.add('Grasp_back',
+                               smach_ros.SimpleActionState('handover_action', TestAction,
+                               goal = TestGoal(goal=2)),
+                               {'succeeded':'End','aborted':'Grasp_back'})
+
+    sis = smach_ros.IntrospectionServer('my_smach_introspection_server', sm0, '/SM_ROOT')
+    sis.start()
+
+    outcome = sm0.execute()
+
+    rospy.spin()
+    sis.stop()
     
 if __name__ == '__main__':
-    print("Chose strategies : Handover 1 / Multi_view Handover 2 / Open cover 3")
+    print("Chose strategies : Handover 1 / Multi_view Handover 2 / Open cover 3 / Hand Off 4")
     mode = int(input("Enter : "))
     while True:
         if mode == 1:
@@ -301,6 +331,9 @@ if __name__ == '__main__':
             break
         elif mode == 3:
             open_cap()
+            break
+        elif mode == 4:
+            hand_off()
             break
         else:
             mode = int(input("Re Enter : "))
