@@ -118,7 +118,7 @@ class Affordance_predict():
         self.transformer = TransformerROS()
         self.value = None
         self.arm = arm
-        self.fric = 0.5
+        self.factor = 0.5
         self.go_loop = False
         self.fx = fx
         self.fy = fy
@@ -285,9 +285,9 @@ class Affordance_predict():
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 print("Error TF listening")
                 return
-            tf_pose.target_pose.position.x = (tf_pose.target_pose.position.x + trans[0])*self.fric
-            tf_pose.target_pose.position.y = (tf_pose.target_pose.position.y + trans[1])*self.fric
-            tf_pose.target_pose.position.z = (tf_pose.target_pose.position.z + trans[2])*self.fric
+            tf_pose.target_pose.position.x = (tf_pose.target_pose.position.x + trans[0])*self.factor
+            tf_pose.target_pose.position.y = (tf_pose.target_pose.position.y + trans[1])*self.factor
+            tf_pose.target_pose.position.z = (tf_pose.target_pose.position.z + trans[2])*self.factor
 
         return tf_pose, vaild
 
