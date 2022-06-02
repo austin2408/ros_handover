@@ -1,7 +1,0 @@
-learning_rate: 2.5e-4
-mini_batch_size: 10
-save_freq: 100
-updating_freq: 20
-iteration: 500
-discount_factor: 0.9
-memory_size: 500
